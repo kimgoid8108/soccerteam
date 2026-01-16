@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Club } from './entities/club.entity';
 import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
+import { ConflictException } from '@nestjs/common';
 
 @Injectable()
 export class ClubsService {
@@ -12,7 +13,20 @@ export class ClubsService {
     private readonly clubsRepository: Repository<Club>,
   ) {}
 
-  async create(createClubDto: CreateClubDto, adminUserId: number): Promise<Club> {
+  async create(
+    createClubDto: CreateClubDto,
+    adminUserId: number,
+  ): Promise<Club> {
+    // ✅ 1. 클럽 이름 중복 체크
+    const existingClub = await this.clubsRepository.findOne({
+      where: { name: createClubDto.name },
+    });
+
+    if (existingClub) {
+      throw new ConflictException('이미 존재하는 클럽 이름입니다.');
+    }
+
+    // ✅ 2. 클럽 생성
     const club = this.clubsRepository.create({
       ...createClubDto,
       admin_user_id: adminUserId,
@@ -20,6 +34,7 @@ export class ClubsService {
         ? new Date(createClubDto.founded_at)
         : null,
     });
+
     return this.clubsRepository.save(club);
   }
 
