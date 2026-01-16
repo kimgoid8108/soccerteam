@@ -1,12 +1,18 @@
-import { IsEmail, IsString, IsInt, IsEnum, MinLength } from 'class-validator';
-import { OnboardingType } from '../entities/user.entity';
+import {
+  IsEmail,
+  IsInt,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
   email: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   password: string;
 
   @IsString()
@@ -15,6 +21,7 @@ export class CreateUserDto {
   @IsInt()
   age: number;
 
-  @IsEnum(OnboardingType)
-  onboarding_type: OnboardingType;
+  @IsOptional()
+  @IsIn(['member', 'owner'])
+  onboarding_type?: 'member' | 'owner';
 }

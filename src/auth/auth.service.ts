@@ -70,4 +70,10 @@ export class AuthService {
       },
     };
   }
+
+  async me(userId: string | number) {
+    // bigint면 string으로 들어올 수 있어서 BigInt 변환 or string 유지
+    const id = typeof userId === 'string' ? BigInt(userId) : BigInt(userId);
+    return this.usersService.findMeById(id);
+  }
 }

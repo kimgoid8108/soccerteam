@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+import { User, OnboardingType } from './entities/user.entity'; // 경로 맞춰서
 import * as bcrypt from 'bcrypt';
 
 const BCRYPT_ROUNDS = 10;
@@ -24,25 +24,29 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    // 이메일 중복 체크
     const existingUser = await this.usersRepository.findOne({
       where: { email: createUserDto.email },
     });
-    if (existingUser) {
+    if (existingUser)
       throw new ConflictException('이미 존재하는 이메일입니다.');
-    }
 
-    // 비밀번호 해시
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       BCRYPT_ROUNDS,
     );
 
-    // OnboardingType이 enum인 경우 타입 강제 지정 (import 필요할 수도 있음)
-    const user = this.usersRepository.create({
-      ...createUserDto,
+    // ✅ string -> enum 변환
+    const onboarding: OnboardingType =
+      createUserDto.onboarding_type === 'owner'
+        ? OnboardingType.OWNER
+        : OnboardingType.MEMBER;
+
+    const user: User = this.usersRepository.create({
+      email: createUserDto.email,
       password: hashedPassword,
-      onboarding_type: 'member' as any, // 타입 경고 회피 (enum 값일 경우)
+      name: createUserDto.name,
+      age: createUserDto.age,
+      onboarding_type: onboarding,
     });
 
     return await this.usersRepository.save(user);
@@ -64,6 +68,19 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { email } });
   }
 
+  async findMeById(id: bigint): Promise<Partial<User>> {
+    const user = await this.usersRepository.findOne({
+      where: { id: id as any }, // entity id 타입에 맞춰 조정
+      select: ['id', 'email', 'name', 'age', 'onboarding_type', 'created_at'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    return user;
+  }
+
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
@@ -82,5 +99,28 @@ export class UsersService {
   async remove(id: number): Promise<void> {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
+  }
+
+  async updateOnboardingType(
+    userId: string | number,
+    type: 'member' | 'owner',
+  ): Promise<{ ok: boolean; onboarding_type: string }> {
+    // ✅ userId 타입 맞추기
+    // 엔티티 id가 number면 Number(userId)
+    // bigint면 BigInt(userId)
+    const id = typeof userId === 'string' ? Number(userId) : Number(userId);
+
+    const user = await this.usersRepository.findOne({ where: { id } as any });
+    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+
+    // 해당 메서드에서도 string -> enum 변환
+    user.onboarding_type =
+      type === 'owner' ? OnboardingType.OWNER : OnboardingType.MEMBER;
+    await this.usersRepository.save(user);
+
+    return {
+      ok: true,
+      onboarding_type: user.onboarding_type,
+    };
   }
 }
