@@ -12,7 +12,7 @@ import { ClubMember } from '../../club-members/entities/club-member.entity';
 import { JoinRequest } from '../../join-requests/entities/join-request.entity';
 import { Match } from '../../matches/entities/match.entity';
 
-@Entity('clubs')
+@Entity({ schema: 'football', name: 'clubs' })
 export class Club {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
