@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ClubsService } from './clubs.service';
 import { CreateClubDto } from './dto/create-club.dto';
@@ -26,6 +27,12 @@ export class ClubsController {
     @CurrentUser() user: { id: number },
   ) {
     return this.clubsService.create(createClubDto, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my')
+  getMyClub(@Req() req: any) {
+    return this.clubsService.findMyClub(Number(req.user.userId));
   }
 
   @Get()

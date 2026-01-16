@@ -23,6 +23,14 @@ export class ClubsService {
     return this.clubsRepository.save(club);
   }
 
+  async findMyClub(userId: number): Promise<Club | null> {
+    const club = await this.clubsRepository.findOne({
+      where: { admin_user_id: userId },
+      relations: ['admin_user'],
+    });
+    return club || null;
+  }
+
   async findAll(): Promise<Club[]> {
     return this.clubsRepository.find({
       relations: ['admin_user'],
