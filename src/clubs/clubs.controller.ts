@@ -22,11 +22,9 @@ export class ClubsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
-    @Body() createClubDto: CreateClubDto,
-    @CurrentUser() user: { id: number },
-  ) {
-    return this.clubsService.create(createClubDto, user.id);
+  create(@Body() createClubDto: CreateClubDto, @Req() req: any) {
+    const adminUserId = Number(req.user.userId || req.user.id);
+    return this.clubsService.create(createClubDto, adminUserId);
   }
 
   @UseGuards(JwtAuthGuard)

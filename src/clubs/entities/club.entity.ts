@@ -29,7 +29,7 @@ export class Club {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'bigint', name: 'admin_user_id' })
+  @Column({ type: 'bigint', name: 'admin_user_id', unique: true })
   admin_user_id: number;
 
   @CreateDateColumn({ type: 'timestamp', name: 'created_at' })

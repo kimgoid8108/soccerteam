@@ -17,7 +17,18 @@ export class ClubsService {
     createClubDto: CreateClubDto,
     adminUserId: number,
   ): Promise<Club> {
-    // ✅ 1. 클럽 이름 중복 체크
+    // ✅ 1. 운영자가 이미 클럽을 생성했는지 체크 (최초 1회만 생성 가능)
+    const existingMyClub = await this.clubsRepository.findOne({
+      where: { admin_user_id: adminUserId },
+    });
+
+    if (existingMyClub) {
+      throw new ConflictException(
+        '클럽은 운영자당 최초 1회만 생성할 수 있습니다.',
+      );
+    }
+
+    // ✅ 2. 클럽 이름 중복 체크
     const existingClub = await this.clubsRepository.findOne({
       where: { name: createClubDto.name },
     });
@@ -26,7 +37,7 @@ export class ClubsService {
       throw new ConflictException('이미 존재하는 클럽 이름입니다.');
     }
 
-    // ✅ 2. 클럽 생성
+    // ✅ 3. 클럽 생성
     const club = this.clubsRepository.create({
       ...createClubDto,
       admin_user_id: adminUserId,
