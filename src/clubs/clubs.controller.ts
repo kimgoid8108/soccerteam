@@ -40,7 +40,7 @@ export class ClubsController {
     return this.clubsService.findAll();
   }
 
-  @Get(':id(\\d+)')
+  @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.clubsService.findOne(id);
   }
