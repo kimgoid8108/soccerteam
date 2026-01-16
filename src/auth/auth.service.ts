@@ -7,6 +7,8 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +16,7 @@ export class AuthService {
     '이메일 또는 비밀번호가 올바르지 않습니다.';
 
   constructor(
+    @InjectRepository(User)
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
   ) {}

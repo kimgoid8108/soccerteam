@@ -19,7 +19,7 @@ export enum OnboardingType {
   MEMBER = 'member',
 }
 
-@Entity('users')
+@Entity({ schema: 'football', name: 'clubs' })
 export class User {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
