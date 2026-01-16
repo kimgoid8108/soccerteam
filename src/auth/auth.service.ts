@@ -6,9 +6,8 @@ import {
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { OnboardingType } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +15,6 @@ export class AuthService {
     '이메일 또는 비밀번호가 올바르지 않습니다.';
 
   constructor(
-    @InjectRepository(User)
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
   ) {}
@@ -30,8 +28,18 @@ export class AuthService {
       throw new ConflictException('이미 존재하는 이메일입니다.');
     }
 
+    // 비밀번호 해싱
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
     // 회원가입 처리
-    const user = await this.usersService.create(createUserDto);
+    const user = await this.usersService.create({
+      ...createUserDto,
+      password: hashedPassword,
+      onboarding_type:
+        createUserDto.onboarding_type === 'owner'
+          ? OnboardingType.OWNER
+          : OnboardingType.MEMBER,
+    });
 
     // JWT 토큰 생성
     const accessToken = this.jwtService.sign({
@@ -75,8 +83,17 @@ export class AuthService {
   }
 
   async me(userId: string | number) {
-    // bigint면 string으로 들어올 수 있어서 BigInt 변환 or string 유지
-    const id = typeof userId === 'string' ? BigInt(userId) : BigInt(userId);
-    return this.usersService.findMeById(id);
+    const id = typeof userId === 'string' ? Number(userId) : userId;
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      age: user.age,
+      onboarding_type: user.onboarding_type,
+    };
   }
 }

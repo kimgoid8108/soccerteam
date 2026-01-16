@@ -21,7 +21,7 @@ export class CreateUserDto {
   @IsInt()
   age: number;
 
-  @IsOptional()
+  @IsString()
   @IsIn(['member', 'owner'])
-  onboarding_type?: 'member' | 'owner';
+  onboarding_type: 'member' | 'owner';
 }
