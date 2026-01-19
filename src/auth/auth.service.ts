@@ -94,6 +94,7 @@ export class AuthService {
       name: user.name,
       age: user.age,
       onboarding_type: user.onboarding_type,
+      created_at: user.created_at,
     };
   }
 }
