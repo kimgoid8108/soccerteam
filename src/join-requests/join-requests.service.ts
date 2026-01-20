@@ -1,18 +1,19 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { JoinRequest, JoinRequestStatus } from './entities/join-request.entity';
 import { CreateJoinRequestDto } from './dto/create-join-request.dto';
 import { UpdateJoinRequestDto } from './dto/update-join-request.dto';
-import { ClubMembersService } from '../club-members/club-members.service';
-import { ClubRole, MemberStatus } from '../club-members/entities/club-member.entity';
+import { ClubMember, ClubRole, MemberStatus } from '../club-members/entities/club-member.entity';
 
 @Injectable()
 export class JoinRequestsService {
   constructor(
     @InjectRepository(JoinRequest)
     private readonly joinRequestsRepository: Repository<JoinRequest>,
-    private readonly clubMembersService: ClubMembersService,
+    @InjectRepository(ClubMember)
+    private readonly clubMembersRepository: Repository<ClubMember>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createJoinRequestDto: CreateJoinRequestDto): Promise<JoinRequest> {
@@ -59,71 +60,73 @@ export class JoinRequestsService {
 
   async approve(id: number): Promise<JoinRequest> {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('[APPROVE] 🔵 승인 시작 - Request ID:', id);
+    console.log('[APPROVE] 시작 - Request ID:', id);
 
-    const joinRequest = await this.findOne(id);
+    return this.dataSource.transaction(async (manager) => {
+      const joinRequest = await manager.findOne(JoinRequest, {
+        where: { id },
+        relations: ['club', 'user'],
+      });
 
-    console.log('[APPROVE] 📋 가입 요청 정보:', {
-      id: joinRequest.id,
-      club_id: joinRequest.club_id,
-      user_id: joinRequest.user_id,
-      status: joinRequest.status,
-      club_name: joinRequest.club?.name,
-      user_name: joinRequest.user?.name,
-    });
+      if (!joinRequest) {
+        throw new NotFoundException(`Join request with ID ${id} not found`);
+      }
 
-    // 이미 승인된 요청인지 확인
-    if (joinRequest.status === JoinRequestStatus.APPROVED) {
-      console.log('[APPROVE] ⚠️ 이미 승인된 요청');
-      throw new ConflictException('이미 승인된 가입 요청입니다.');
-    }
-
-    // 클럽 멤버로 추가
-    try {
-      console.log('[APPROVE] 🔵 멤버 추가 시도 중...');
-      const newMember = await this.clubMembersService.create({
+      console.log('[APPROVE] 가입 요청 정보:', {
+        id: joinRequest.id,
         club_id: joinRequest.club_id,
         user_id: joinRequest.user_id,
-        role: ClubRole.MEMBER,
-        status: MemberStatus.ACTIVE,
+        status: joinRequest.status,
       });
 
-      console.log('[APPROVE] ✅ 멤버 추가 성공!', {
-        member_id: newMember.id,
-        club_id: newMember.club_id,
-        user_id: newMember.user_id,
-        role: newMember.role,
-        status: newMember.status,
-        joined_at: newMember.joined_at,
-      });
-    } catch (error: any) {
-      console.error('[APPROVE] ❌ 멤버 추가 에러:', {
-        code: error.code,
-        message: error.message,
-        detail: error.detail,
-      });
-
-      // 이미 멤버인 경우 무시 (중복 가입 방지)
-      if (error.code !== '23505') {
-        console.error('[APPROVE] 🚨 심각한 에러 발생 - throw');
-        throw error;
+      if (joinRequest.status === JoinRequestStatus.APPROVED) {
+        throw new ConflictException('이미 승인된 가입 요청입니다.');
       }
-      console.log('[APPROVE] ⚠️ 중복 멤버 무시됨 (이미 존재)');
-    }
 
-    // 가입 요청 상태 업데이트
-    joinRequest.status = JoinRequestStatus.APPROVED;
-    joinRequest.responded_at = new Date();
-    const result = await this.joinRequestsRepository.save(joinRequest);
+      try {
+        console.log('[APPROVE] 멤버 추가 시도...');
 
-    console.log('[APPROVE] ✅ 승인 완료!', {
-      request_id: result.id,
-      status: result.status,
-      responded_at: result.responded_at,
+        const memberData = {
+          club_id: joinRequest.club_id,
+          user_id: joinRequest.user_id,
+          role: ClubRole.MEMBER,
+          status: MemberStatus.ACTIVE,
+          joined_at: new Date(),
+        };
+
+        console.log('[APPROVE] 저장할 데이터:', memberData);
+
+        const newMember = await manager.save(ClubMember, memberData);
+
+        console.log('[APPROVE] ✅ 멤버 추가 성공!', {
+          id: newMember.id,
+          club_id: newMember.club_id,
+          user_id: newMember.user_id,
+          role: newMember.role,
+          status: newMember.status,
+        });
+      } catch (error: any) {
+        console.error('[APPROVE] ❌ 멤버 추가 에러:', {
+          code: error.code,
+          message: error.message,
+          detail: error.detail,
+        });
+
+        if (error.code !== '23505') {
+          throw error;
+        }
+        console.log('[APPROVE] ⚠️ 중복 멤버 무시');
+      }
+
+      joinRequest.status = JoinRequestStatus.APPROVED;
+      joinRequest.responded_at = new Date();
+      const result = await manager.save(JoinRequest, joinRequest);
+
+      console.log('[APPROVE] ✅ 승인 완료!');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      return result;
     });
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    return result;
   }
 
   async reject(id: number): Promise<JoinRequest> {

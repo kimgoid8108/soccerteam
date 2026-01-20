@@ -3,10 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JoinRequestsService } from './join-requests.service';
 import { JoinRequestsController } from './join-requests.controller';
 import { JoinRequest } from './entities/join-request.entity';
-import { ClubMembersModule } from '../club-members/club-members.module';
+import { ClubMember } from '../club-members/entities/club-member.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([JoinRequest]), ClubMembersModule],
+  imports: [
+    TypeOrmModule.forFeature([JoinRequest, ClubMember]),
+  ],
   controllers: [JoinRequestsController],
   providers: [JoinRequestsService],
   exports: [JoinRequestsService],
