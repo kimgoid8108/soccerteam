@@ -46,10 +46,8 @@ export class ClubsController {
         clubName: club?.name,
       });
 
-      if (!club) {
-        return { club: null };
-      }
-      return club;
+      // 항상 일관된 형식으로 반환: club 객체 또는 null
+      return club || null;
     } catch (error) {
       console.error('[ClubsController] getMyClub 에러:', error);
       throw error;
