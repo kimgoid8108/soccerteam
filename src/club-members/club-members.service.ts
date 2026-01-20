@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ClubMember } from './entities/club-member.entity';
+import { ClubMember, MemberStatus } from './entities/club-member.entity';
 import { CreateClubMemberDto } from './dto/create-club-member.dto';
 import { UpdateClubMemberDto } from './dto/update-club-member.dto';
 
@@ -42,17 +42,54 @@ export class ClubMembersService {
   }
 
   async findByClubId(clubId: number): Promise<ClubMember[]> {
-    return this.clubMembersRepository.find({
-      where: { club_id: clubId },
+    const members = await this.clubMembersRepository.find({
+      where: {
+        club_id: clubId,
+        status: MemberStatus.ACTIVE, // active 상태만 조회
+      },
       relations: ['user'],
     });
+    console.log('[ClubMembersService] findByClubId:', {
+      clubId,
+      membersCount: members.length,
+      members: members.map((m) => ({
+        id: m.id,
+        user_id: m.user_id,
+        user_name: m.user?.name,
+        role: m.role,
+        status: m.status,
+      })),
+    });
+    return members;
   }
 
-  async findByUserId(userId: number): Promise<ClubMember[]> {
-    return this.clubMembersRepository.find({
-      where: { user_id: userId },
+  async findByUserId(userId: number, status?: MemberStatus): Promise<ClubMember[]> {
+    const where: any = { user_id: userId };
+    if (status) {
+      where.status = status;
+    }
+
+    const members = await this.clubMembersRepository.find({
+      where,
       relations: ['club'],
     });
+
+    console.log('[ClubMembersService] findByUserId:', {
+      userId,
+      status,
+      membersCount: members.length,
+      members: members.map((m) => ({
+        id: m.id,
+        club_id: m.club_id,
+        user_id: m.user_id,
+        status: m.status,
+        hasClub: !!m.club,
+        clubId: m.club?.id,
+        clubName: m.club?.name,
+      })),
+    });
+
+    return members;
   }
 
   async update(

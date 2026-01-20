@@ -29,8 +29,28 @@ export class ClubsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('my')
-  getMyClub(@Req() req: any) {
-    return this.clubsService.findMyClub(Number(req.user.userId));
+  async getMyClub(@Req() req: any) {
+    try {
+      const userId = Number(req.user.userId);
+      console.log('[ClubsController] getMyClub 호출:', { userId });
+
+      const club = await this.clubsService.findMyClub(userId);
+      console.log('[ClubsController] getMyClub 결과:', {
+        hasClub: !!club,
+        clubId: club?.id,
+        clubName: club?.name,
+      });
+
+      // null인 경우 명시적으로 null을 JSON으로 반환
+      // NestJS가 빈 응답을 보내지 않도록 명시적으로 처리
+      if (!club) {
+        return { club: null };
+      }
+      return club;
+    } catch (error) {
+      console.error('[ClubsController] getMyClub 에러:', error);
+      throw error;
+    }
   }
 
   @Get()
