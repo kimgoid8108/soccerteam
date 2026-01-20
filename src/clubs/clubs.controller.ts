@@ -15,10 +15,14 @@ import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ClubMembersService } from '../club-members/club-members.service';  // ✅ 추가
 
 @Controller('clubs')
 export class ClubsController {
-  constructor(private readonly clubsService: ClubsService) {}
+  constructor(
+    private readonly clubsService: ClubsService,
+    private readonly clubMembersService: ClubMembersService, // ✅ 추가
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -27,6 +31,7 @@ export class ClubsController {
     return this.clubsService.create(createClubDto, adminUserId);
   }
 
+  // ✅ 구체적인 경로들을 먼저 선언 (파라미터 경로보다 우선)
   @UseGuards(JwtAuthGuard)
   @Get('my')
   async getMyClub(@Req() req: any) {
@@ -41,8 +46,6 @@ export class ClubsController {
         clubName: club?.name,
       });
 
-      // null인 경우 명시적으로 null을 JSON으로 반환
-      // NestJS가 빈 응답을 보내지 않도록 명시적으로 처리
       if (!club) {
         return { club: null };
       }
@@ -53,11 +56,73 @@ export class ClubsController {
     }
   }
 
+  // ✅ 구체적인 경로: 내가 속한 클럽 목록 조회 (member용)
+  @UseGuards(JwtAuthGuard)
+  @Get('my-clubs')
+  async getMyClubs(@Req() req: any) {
+    try {
+      const userId = Number(req.user.userId || req.user.id);
+      console.log('[ClubsController] getMyClubs 호출:', { userId });
+
+      const memberships = await this.clubMembersService.findByUserId(userId);
+
+      console.log('[ClubsController] getMyClubs 결과:', {
+        count: memberships.length,
+        clubs: memberships.map(m => ({
+          clubId: m.club_id,
+          clubName: m.club?.name,
+          role: m.role,
+        })),
+      });
+
+      return memberships.map(m => m.club);
+    } catch (error) {
+      console.error('[ClubsController] getMyClubs 에러:', error);
+      throw error;
+    }
+  }
+
+  // ✅ 루트 경로
   @Get()
   findAll() {
     return this.clubsService.findAll();
   }
 
+  // ✅ 파라미터 경로들: 더 구체적인 경로를 먼저 선언
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/members')
+  async getClubMembers(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    try {
+      console.log('[ClubsController] getClubMembers 호출:', {
+        clubId: id,
+        userId: req.user.userId,
+      });
+
+      const members = await this.clubMembersService.findByClubId(id);
+
+      console.log('[ClubsController] getClubMembers 결과:', {
+        clubId: id,
+        count: members.length,
+        members: members.map(m => ({
+          id: m.id,
+          userId: m.user_id,
+          userName: m.user?.name,
+          role: m.role,
+          status: m.status,
+        })),
+      });
+
+      return members;
+    } catch (error) {
+      console.error('[ClubsController] getClubMembers 에러:', error);
+      throw error;
+    }
+  }
+
+  // ✅ 일반 파라미터 경로 (가장 마지막)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.clubsService.findOne(id);

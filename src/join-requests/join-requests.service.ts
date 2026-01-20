@@ -58,50 +58,71 @@ export class JoinRequestsService {
   }
 
   async approve(id: number): Promise<JoinRequest> {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('[APPROVE] 🔵 승인 시작 - Request ID:', id);
+
     const joinRequest = await this.findOne(id);
+
+    console.log('[APPROVE] 📋 가입 요청 정보:', {
+      id: joinRequest.id,
+      club_id: joinRequest.club_id,
+      user_id: joinRequest.user_id,
+      status: joinRequest.status,
+      club_name: joinRequest.club?.name,
+      user_name: joinRequest.user?.name,
+    });
 
     // 이미 승인된 요청인지 확인
     if (joinRequest.status === JoinRequestStatus.APPROVED) {
+      console.log('[APPROVE] ⚠️ 이미 승인된 요청');
       throw new ConflictException('이미 승인된 가입 요청입니다.');
     }
 
     // 클럽 멤버로 추가
     try {
+      console.log('[APPROVE] 🔵 멤버 추가 시도 중...');
       const newMember = await this.clubMembersService.create({
         club_id: joinRequest.club_id,
         user_id: joinRequest.user_id,
         role: ClubRole.MEMBER,
         status: MemberStatus.ACTIVE,
       });
-      console.log('[JoinRequestsService] 멤버 추가 성공:', {
-        id: newMember.id,
+
+      console.log('[APPROVE] ✅ 멤버 추가 성공!', {
+        member_id: newMember.id,
         club_id: newMember.club_id,
         user_id: newMember.user_id,
         role: newMember.role,
         status: newMember.status,
+        joined_at: newMember.joined_at,
       });
     } catch (error: any) {
-      console.error('[JoinRequestsService] 멤버 추가 에러:', {
+      console.error('[APPROVE] ❌ 멤버 추가 에러:', {
         code: error.code,
         message: error.message,
-        club_id: joinRequest.club_id,
-        user_id: joinRequest.user_id,
+        detail: error.detail,
       });
+
       // 이미 멤버인 경우 무시 (중복 가입 방지)
       if (error.code !== '23505') {
+        console.error('[APPROVE] 🚨 심각한 에러 발생 - throw');
         throw error;
       }
-      console.log('[JoinRequestsService] 중복 멤버 무시됨 (이미 존재)');
+      console.log('[APPROVE] ⚠️ 중복 멤버 무시됨 (이미 존재)');
     }
 
     // 가입 요청 상태 업데이트
     joinRequest.status = JoinRequestStatus.APPROVED;
     joinRequest.responded_at = new Date();
     const result = await this.joinRequestsRepository.save(joinRequest);
-    console.log('[JoinRequestsService] 승인 완료:', {
+
+    console.log('[APPROVE] ✅ 승인 완료!', {
       request_id: result.id,
       status: result.status,
+      responded_at: result.responded_at,
     });
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     return result;
   }
 
