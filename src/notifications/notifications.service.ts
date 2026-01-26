@@ -53,7 +53,30 @@ export class NotificationsService {
     return notification;
   }
 
-  async findByUserId(userId: number): Promise<Notification[]> {
+  async findByUserId(userId: number, isOwner?: boolean): Promise<Notification[]> {
+    // owner인 경우: 자신이 생성한 알림만 조회 (is_read가 true인 것들로 구분)
+    if (isOwner) {
+      const notifications = await this.notificationsRepository.find({
+        where: {
+          user_id: userId,
+          is_read: true, // owner가 생성한 알림은 is_read가 true
+        },
+        order: { created_at: 'DESC' },
+      });
+      console.log('[NotificationsService] findByUserId - owner:', {
+        userId,
+        isOwner,
+        notificationsCount: notifications.length,
+        notifications: notifications.map((n) => ({
+          id: n.id,
+          message: n.message.substring(0, 50),
+          is_read: n.is_read,
+          created_at: n.created_at,
+        })),
+      });
+      return notifications;
+    }
+
     return this.notificationsRepository.find({
       where: { user_id: userId },
       order: { created_at: 'DESC' },
@@ -141,6 +164,9 @@ export class NotificationsService {
       const fullMessage = `${createClubNotificationDto.title}\n\n${createClubNotificationDto.message}`;
       const notificationType = createClubNotificationDto.type || NotificationType.MATCH_CREATED;
 
+      // owner가 멤버 목록에 포함되어 있는지 확인
+      const isOwnerInMembers = members.some((member) => member.user_id === userId);
+
       const notifications = members.map((member) =>
         queryRunner.manager.create(Notification, {
           user_id: member.user_id,
@@ -151,6 +177,24 @@ export class NotificationsService {
       );
 
       const savedNotifications = await queryRunner.manager.save(notifications);
+
+      // owner에게도 자신이 생성한 알림을 저장 (조회용, is_read: true로 설정하여 구분)
+      // owner가 멤버 목록에 있어도 별도로 저장하여 owner가 자신이 생성한 알림을 볼 수 있도록 함
+      const ownerNotification = queryRunner.manager.create(Notification, {
+        user_id: userId,
+        type: notificationType,
+        message: fullMessage,
+        is_read: true, // owner가 생성한 알림은 is_read가 true로 설정하여 구분
+      });
+      const savedOwnerNotification = await queryRunner.manager.save(ownerNotification);
+
+      console.log('[NotificationsService] createClubNotification - owner 알림 저장:', {
+        userId,
+        notificationId: savedOwnerNotification.id,
+        message: savedOwnerNotification.message.substring(0, 50),
+        is_read: savedOwnerNotification.is_read,
+      });
+
       await queryRunner.commitTransaction();
 
       return savedNotifications;

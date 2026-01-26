@@ -16,11 +16,16 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { CreateClubNotificationDto } from './dto/create-club-notification.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UsersService } from '../users/users.service';
+import { OnboardingType } from '../users/entities/user.entity';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
+  ) {}
 
   // 구체적인 경로를 먼저 선언 (파라미터 경로보다 우선)
   @Post('club')
@@ -41,16 +46,31 @@ export class NotificationsController {
   }
 
   @Get()
-  findAll(@Query('userId') userId?: string, @Query('unread') unread?: string, @Req() req?: any) {
+  async findAll(@Query('userId') userId?: string, @Query('unread') unread?: string, @Req() req?: any) {
     // JWT에서 userId 가져오기 (쿼리 파라미터가 없으면)
     const currentUserId = req?.user?.userId || req?.user?.id;
     const targetUserId = userId ? +userId : currentUserId ? Number(currentUserId) : undefined;
 
     if (targetUserId) {
+      // 사용자 정보 조회하여 owner 여부 확인
+      const user = await this.usersService.findById(targetUserId);
+      const isOwner = user?.onboarding_type === OnboardingType.OWNER;
+
+      console.log('[NotificationsController] findAll - owner 확인:', {
+        targetUserId,
+        onboardingType: user?.onboarding_type,
+        isOwner,
+      });
+
+      // owner는 읽지 않음 필터 무시하고 자신이 생성한 알림만 조회
+      if (isOwner) {
+        return this.notificationsService.findByUserId(targetUserId, true);
+      }
+
       if (unread === 'true') {
         return this.notificationsService.findUnreadByUserId(targetUserId);
       }
-      return this.notificationsService.findByUserId(targetUserId);
+      return this.notificationsService.findByUserId(targetUserId, false);
     }
     return this.notificationsService.findAll();
   }
