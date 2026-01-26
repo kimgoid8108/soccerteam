@@ -11,6 +11,7 @@ import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { MatchesModule } from './matches/matches.module';
 import { MatchAttendanceModule } from './match-attendance/match-attendance.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { FeesModule } from './fees/fees.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     MatchesModule,
     MatchAttendanceModule,
     NotificationsModule,
+    FeesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

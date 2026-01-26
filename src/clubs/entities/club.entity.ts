@@ -11,6 +11,7 @@ import { User } from '../../users/entities/user.entity';
 import { ClubMember } from '../../club-members/entities/club-member.entity';
 import { JoinRequest } from '../../join-requests/entities/join-request.entity';
 import { Match } from '../../matches/entities/match.entity';
+import { FeeCycle } from '../../fees/entities/fee-cycle.entity';
 
 @Entity({ schema: 'football', name: 'clubs' })
 export class Club {
@@ -47,4 +48,7 @@ export class Club {
 
   @OneToMany(() => Match, (match) => match.club)
   matches: Match[];
+
+  @OneToMany(() => FeeCycle, (feeCycle) => feeCycle.club)
+  fee_cycles: FeeCycle[];
 }
