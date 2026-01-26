@@ -38,13 +38,11 @@ export class FeesService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
-    // enum 값 또는 문자열로 비교 (TypeORM enum이 문자열로 반환될 수 있음)
-    const isOwner = user.onboarding_type === OnboardingType.OWNER || String(user.onboarding_type) === 'owner';
-    if (!isOwner) {
+    // enum 값 비교
+    if (user.onboarding_type !== OnboardingType.OWNER) {
       console.error('[FeesService] createFeeCycle - 권한 오류:', {
         userId,
         onboardingType: user.onboarding_type,
-        onboardingTypeString: String(user.onboarding_type),
         onboardingTypeEnum: OnboardingType.OWNER,
       });
       throw new ForbiddenException('운영자만 회비 회차를 생성할 수 있습니다.');
@@ -174,8 +172,7 @@ export class FeesService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
-    const isOwner = user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner';
-    if (!isOwner) {
+    if (user.onboarding_type !== OnboardingType.OWNER) {
       throw new ForbiddenException('운영자만 입금을 확인할 수 있습니다.');
     }
 
@@ -223,8 +220,7 @@ export class FeesService {
     if (!user) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
-    const isOwner = user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner';
-    if (!isOwner) {
+    if (user.onboarding_type !== OnboardingType.OWNER) {
       throw new ForbiddenException('운영자만 회비 상태를 조회할 수 있습니다.');
     }
 
@@ -278,7 +274,7 @@ export class FeesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    if (user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner') {
+    if (user.onboarding_type === OnboardingType.OWNER) {
       // owner인 경우 클럽 소유권 확인
       const adminUserId = Number(club.admin_user_id);
       const currentUserId = Number(userId);
