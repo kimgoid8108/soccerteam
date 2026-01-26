@@ -137,7 +137,22 @@ export class FeesService {
     }
 
     // 본인의 요청인지 확인
-    if (feeRequest.user_id !== userId) {
+    const requestUserId = Number(feeRequest.user_id);
+    const currentUserId = Number(userId);
+
+    console.log('[FeesService] reportFeeRequest - 사용자 확인:', {
+      feeRequestId,
+      requestUserId,
+      currentUserId,
+      userId,
+      isEqual: requestUserId === currentUserId,
+      typeCheck: {
+        requestUserIdType: typeof requestUserId,
+        currentUserIdType: typeof currentUserId,
+      },
+    });
+
+    if (requestUserId !== currentUserId) {
       throw new ForbiddenException('본인의 회비만 신고할 수 있습니다.');
     }
 
