@@ -14,6 +14,7 @@ import { ClubsService } from '../clubs/clubs.service';
 import { ClubMembersService } from '../club-members/club-members.service';
 import { UsersService } from '../users/users.service';
 import { MemberStatus } from '../club-members/entities/club-member.entity';
+import { OnboardingType } from '../users/entities/user.entity';
 
 @Injectable()
 export class FeesService {
@@ -34,13 +35,40 @@ export class FeesService {
   ): Promise<FeeCycle> {
     // 1. 사용자가 owner인지 확인
     const user = await this.usersService.findById(userId);
-    if (!user || user.onboarding_type !== 'owner') {
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    // enum 값 또는 문자열로 비교 (TypeORM enum이 문자열로 반환될 수 있음)
+    const isOwner = user.onboarding_type === OnboardingType.OWNER || String(user.onboarding_type) === 'owner';
+    if (!isOwner) {
+      console.error('[FeesService] createFeeCycle - 권한 오류:', {
+        userId,
+        onboardingType: user.onboarding_type,
+        onboardingTypeString: String(user.onboarding_type),
+        onboardingTypeEnum: OnboardingType.OWNER,
+      });
       throw new ForbiddenException('운영자만 회비 회차를 생성할 수 있습니다.');
     }
 
     // 2. 클럽 존재 및 소유권 확인
     const club = await this.clubsService.findOne(createFeeCycleDto.club_id);
-    if (club.admin_user_id !== userId) {
+    const adminUserId = Number(club.admin_user_id);
+    const currentUserId = Number(userId);
+
+    console.log('[FeesService] createFeeCycle - 클럽 소유권 확인:', {
+      clubId: createFeeCycleDto.club_id,
+      clubAdminUserId: club.admin_user_id,
+      adminUserId,
+      currentUserId,
+      userId,
+      isEqual: adminUserId === currentUserId,
+      typeCheck: {
+        adminUserIdType: typeof adminUserId,
+        currentUserIdType: typeof currentUserId,
+      },
+    });
+
+    if (adminUserId !== currentUserId) {
       throw new ForbiddenException('해당 클럽의 운영자가 아닙니다.');
     }
 
@@ -143,13 +171,20 @@ export class FeesService {
 
     // 사용자가 owner인지 확인
     const user = await this.usersService.findById(userId);
-    if (!user || user.onboarding_type !== 'owner') {
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    const isOwner = user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner';
+    if (!isOwner) {
       throw new ForbiddenException('운영자만 입금을 확인할 수 있습니다.');
     }
 
     // 클럽 소유권 확인
     const club = await this.clubsService.findOne(feeRequest.club_id);
-    if (club.admin_user_id !== userId) {
+    const adminUserId = Number(club.admin_user_id);
+    const currentUserId = Number(userId);
+
+    if (adminUserId !== currentUserId) {
       throw new ForbiddenException('해당 클럽의 운영자가 아닙니다.');
     }
 
@@ -185,12 +220,19 @@ export class FeesService {
 
     // 사용자가 owner인지 확인
     const user = await this.usersService.findById(userId);
-    if (!user || user.onboarding_type !== 'owner') {
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    const isOwner = user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner';
+    if (!isOwner) {
       throw new ForbiddenException('운영자만 회비 상태를 조회할 수 있습니다.');
     }
 
     // 클럽 소유권 확인
-    if (feeCycle.club.admin_user_id !== userId) {
+    const adminUserId = Number(feeCycle.club.admin_user_id);
+    const currentUserId = Number(userId);
+
+    if (adminUserId !== currentUserId) {
       throw new ForbiddenException('해당 클럽의 운영자가 아닙니다.');
     }
 
@@ -236,9 +278,12 @@ export class FeesService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    if (user.onboarding_type === 'owner') {
+    if (user.onboarding_type === OnboardingType.OWNER || user.onboarding_type === 'owner') {
       // owner인 경우 클럽 소유권 확인
-      if (club.admin_user_id !== userId) {
+      const adminUserId = Number(club.admin_user_id);
+      const currentUserId = Number(userId);
+
+      if (adminUserId !== currentUserId) {
         throw new ForbiddenException('해당 클럽의 운영자가 아닙니다.');
       }
     } else {
